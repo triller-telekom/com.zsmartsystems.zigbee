@@ -965,6 +965,20 @@ public class ZigBeeNetworkManager implements ZigBeeTransportReceive {
 
         logger.debug("RX CMD: {}", command);
 
+        // if (command instanceof IeeeAddressResponse) {
+        // logger.debug("Stefan: hack received IeeeAddressResponse");
+        // IeeeAddressResponse res = (IeeeAddressResponse) command;
+        //
+        // if (res.getSourceAddress().getAddress() == 0 && res.getDestinationAddress().getAddress() == 0) {
+        // logger.debug("Stefan: hack IeeeAddressResponse from 0 to 0");
+        // List<Integer> nwkAddrAssocDevList = new ArrayList<Integer>();
+        // nwkAddrAssocDevList.add(23);
+        // res.setNwkAddrAssocDevList(nwkAddrAssocDevList);
+        // res.setStartIndex(new Integer(0));
+        // }
+        // logger.debug("Stefan after edit: RX CMD: {}", command);
+        // }
+
         // Pass the command to the transaction manager for processing
         // If the transaction manager wants to drop this command, it returns null
         final ZigBeeCommand finalCommand = transactionManager.receive(command);
@@ -1709,9 +1723,13 @@ public class ZigBeeNetworkManager implements ZigBeeTransportReceive {
             nodeDiscoveryComplete.add(node.getIeeeAddress());
             sendNodeAdded = true;
         } else if (!currentNode.isDiscovered() && !currentNode.getIeeeAddress().equals(localIeeeAddress)) {
-            logger.debug("{}: Node {} discovery is not complete - not sending nodeUpdated notification",
+            // logger.debug("{}: Node {} discovery is not complete - not sending nodeUpdated notification",
+            // node.getIeeeAddress(), String.format("%04X", node.getNetworkAddress()));
+            // return null;
+            logger.debug(
+                    "{}: Node {} discovery is not complete - sending nodeUpdated notification to inform discovery extension",
                     node.getIeeeAddress(), String.format("%04X", node.getNetworkAddress()));
-            return null;
+            sendNodeAdded = false;
         } else {
             sendNodeAdded = false;
         }

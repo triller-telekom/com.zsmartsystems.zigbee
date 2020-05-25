@@ -189,12 +189,7 @@ public class ZigBeeDiscoveryExtension
     @Override
     public void nodeAdded(ZigBeeNode node) {
         synchronized (nodeDiscovery) {
-            if (nodeDiscovery.containsKey(node.getIeeeAddress())) {
-                return;
-            }
-
-            logger.debug("{}: DISCOVERY Extension: Adding discoverer for added node", node.getIeeeAddress());
-            startDiscovery(node);
+            startDiscoveryIfNecessary(node);
         }
     }
 
@@ -202,15 +197,27 @@ public class ZigBeeDiscoveryExtension
     public void nodeUpdated(ZigBeeNode node) {
         synchronized (nodeDiscovery) {
             // We need to handle the cases where the node changes to ONLINE, or to OFFLINE
-            if (node.getNodeState() == ZigBeeNodeState.ONLINE && !nodeDiscovery.containsKey(node.getIeeeAddress())) {
-                logger.debug("{}: DISCOVERY Extension: Adding discoverer for updated node", node.getIeeeAddress());
+            if (node.getNodeState() == ZigBeeNodeState.ONLINE) {
                 // If the state is ONLINE, then ensure discovery is running
-                startDiscovery(node);
+                startDiscoveryIfNecessary(node);
             } else if (node.getNodeState() != ZigBeeNodeState.ONLINE
                     && nodeDiscovery.containsKey(node.getIeeeAddress())) {
                 // If state is not ONLINE, then stop discovery
                 stopDiscovery(node);
             }
+        }
+    }
+
+    private void startDiscoveryIfNecessary(ZigBeeNode node) {
+        ZigBeeNodeServiceDiscoverer nodeDiscoverer = nodeDiscovery.get(node.getIeeeAddress());
+        // either there is no node discoverer or it has finished its tasks unsuccessfully
+        if (nodeDiscoverer == null || nodeDiscoverer.isFinished() && !nodeDiscoverer.isSuccessful()) {
+            logger.debug("{}: DISCOVERY Extension: Adding discoverer for node", node.getIeeeAddress());
+            startDiscovery(node);
+        } else if (!nodeDiscoverer.isFinished()) {
+            // kill old node discoverer and create a new one
+            stopDiscovery(node);
+            startDiscovery(node);
         }
     }
 

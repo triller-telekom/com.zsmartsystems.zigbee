@@ -170,6 +170,8 @@ public class ZigBeeNodeServiceDiscoverer {
      */
     private final Queue<NodeDiscoveryTask> discoveryTasks = new LinkedList<NodeDiscoveryTask>();
 
+    private final Queue<NodeDiscoveryTask> failedDiscoveryTasks = new LinkedList<NodeDiscoveryTask>();
+    private boolean finished = false;
     private boolean closed = false;
 
     /**
@@ -197,7 +199,7 @@ public class ZigBeeNodeServiceDiscoverer {
      *
      * @param newTasks a set of {@link NodeDiscoveryTask}s to be performed
      */
-    private void startDiscovery(Set<NodeDiscoveryTask> newTasks) {
+    private void startDiscovery(List<NodeDiscoveryTask> newTasks) {
         // Tasks are managed in a queue. The worker thread will only remove the task from the queue once the task is
         // complete. When no tasks are left in the queue, the worker thread will exit.
         synchronized (discoveryTasks) {
@@ -598,6 +600,7 @@ public class ZigBeeNodeServiceDiscoverer {
                     lastDiscoveryCompleted = Calendar.getInstance();
                     logger.debug("{}: Node SVC Discovery: complete", node.getIeeeAddress());
                     networkManager.updateNode(updatedNode);
+                    finished = true;
                     return;
                 }
                 logger.debug("{}: Node SVC Discovery: running {}", node.getIeeeAddress(), discoveryTask);
@@ -649,6 +652,12 @@ public class ZigBeeNodeServiceDiscoverer {
                             discoveryTask, retryCnt);
                     synchronized (discoveryTasks) {
                         discoveryTasks.remove(discoveryTask);
+                        failedDiscoveryTasks.add(discoveryTask);
+                        // if the network address fails, nothing else will work
+                        if (discoveryTask == NodeDiscoveryTask.NWK_ADDRESS && node.getNetworkAddress() == null) {
+                            finished = true;
+                            return;
+                        }
                     }
 
                     retryCnt = 0;
@@ -671,12 +680,20 @@ public class ZigBeeNodeServiceDiscoverer {
         }
     }
 
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public boolean isSuccessful() {
+        return failedDiscoveryTasks.isEmpty();
+    }
+
     /**
      * Starts service discovery for the node.
      */
     public void startDiscovery() {
         logger.debug("{}: Node SVC Discovery: start discovery", node.getIeeeAddress());
-        Set<NodeDiscoveryTask> tasks = new HashSet<NodeDiscoveryTask>();
+        List<NodeDiscoveryTask> tasks = new ArrayList<>();
 
         // Always request the network address unless this is our local node - in case it's changed
         if (!networkManager.getLocalNwkAddress().equals(node.getNetworkAddress())) {
@@ -710,7 +727,7 @@ public class ZigBeeNodeServiceDiscoverer {
 
         } else {
             logger.debug("{}: Node SVC Discovery: Update mesh", node.getIeeeAddress());
-            startDiscovery(new HashSet<>(meshUpdateTasks));
+            startDiscovery(new ArrayList<>(meshUpdateTasks));
         }
     }
 

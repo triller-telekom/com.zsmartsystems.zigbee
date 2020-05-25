@@ -344,10 +344,12 @@ public class ZigBeeNetworkDiscoverer implements ZigBeeCommandListener, ZigBeeAnn
                         // If we don't know the node yet, then try to find the IEEE address
                         // before requesting the associated nodes.
                         if (networkManager.getNode(nodeNetworkAddress) == null) {
+                            logger.debug("Stefan: no node for nodeNetworkAddress={}", nodeNetworkAddress);
                             success = getIeeeAddress(nodeNetworkAddress);
                             continue;
                         }
 
+                        logger.debug("Stefan: get associated nodes now");
                         success = getAssociatedNodes(nodeNetworkAddress);
                         if (success) {
                             break;
@@ -410,6 +412,7 @@ public class ZigBeeNetworkDiscoverer implements ZigBeeCommandListener, ZigBeeAnn
         Set<Integer> associatedDevices = new HashSet<Integer>();
 
         do {
+            logger.debug("Stefan: getAssociatedNodes, startIndex={}", startIndex);
             // Request extended response, start index for associated list is 0
             final IeeeAddressRequest ieeeAddressRequest = new IeeeAddressRequest(networkAddress, 1, startIndex);
             ieeeAddressRequest.setDestinationAddress(new ZigBeeEndpointAddress(networkAddress));
